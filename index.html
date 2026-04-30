@@ -243,7 +243,7 @@ h1,h2,h3,h4{font-family:'Nunito',sans-serif;}
       <button class="role-btn" id="rb-senior" onclick="setRole('senior')">🎓 Senior</button>
     </div>
     <div class="fld"><label>University Email</label><input type="email" id="login-email" placeholder="you@university.ac.ae"/></div>
-    <div class="fld"><label>Password</label><input type="password" placeholder="••••••••"/></div>
+    <div class="fld"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••"/></div>
     <button class="btn-login" onclick="doLogin()">Sign in →</button>
   </div>
 </div>
@@ -452,105 +452,100 @@ h1,h2,h3,h4{font-family:'Nunito',sans-serif;}
  
 <script>
 const MAJORS=['IT','Computer Engineering','Biomedical Engineering','Architecture','Public Relations','Public Health','Cybersecurity Engineering','Civil Engineering','Mechanical Engineering','Psychology'];
- 
-const seniors=[
-  {id:1,name:'Sara Al Mansouri',initials:'SM',color:'#3d6b4f',major:'IT',year:'4th Year',gpa:'3.8',avail:true,bio:"Hey! I went through the IT curriculum and can help you pick courses, find internships, and build your first real projects. Always happy to chat 😊",topics:['Courses','Internships','Projects','Study tips']},
-  {id:2,name:'Ahmed Al Rashidi',initials:'AR',color:'#6b3d6b',major:'Computer Engineering',year:'4th Year',gpa:'3.6',avail:true,bio:"CompEng is tough but so worth it. I can walk you through the hard modules, lab reports, and how to manage the workload without burning out.",topics:['Lab Reports','Study Plan','Programming','Hardware']},
-  {id:3,name:'Fatima Al Zaabi',initials:'FZ',color:'#3d5a6b',major:'Biomedical Engineering',year:'3rd Year',gpa:'3.9',avail:false,bio:"Biomed combines biology and engineering in a really interesting way. I'll help you understand how to plan electives and get into research early.",topics:['Electives','Research','Biology','Lab Work']},
-  {id:4,name:'Khalid Al Hamdan',initials:'KH',color:'#6b4f3d',major:'Architecture',year:'4th Year',gpa:'3.7',avail:true,bio:"Studio life is intense but amazing. I can help you prep for design crits, pick up the tools, and balance the studio hours like a pro.",topics:['Design Reviews','AutoCAD','Portfolio','Studio Life']},
-  {id:5,name:'Maryam Al Nuaimi',initials:'MN',color:'#3d6b6b',major:'Public Relations',year:'3rd Year',gpa:'3.5',avail:true,bio:"PR is all about communication. I'll help you navigate the major, find campus events to join, and sharpen your writing skills.",topics:['Networking','Events','Writing','Personal Brand']},
-  {id:6,name:'Omar Al Ketbi',initials:'OK',color:'#6b6b3d',major:'Public Health',year:'4th Year',gpa:'3.6',avail:false,bio:"Public health changed how I see the world. I can guide you through research methods, community fieldwork, and the most valuable electives.",topics:['Research','Fieldwork','Electives','Community Work']},
-  {id:7,name:'Noura Al Shamsi',initials:'NS',color:'#4f3d6b',major:'Cybersecurity Engineering',year:'4th Year',gpa:'3.8',avail:true,bio:"Cyber is one of the fastest-growing fields right now. I'll help you plan your specialization, get into CTFs, and understand what employers look for.",topics:['Specialization','CTF Prep','Certifications','Career']},
-  {id:8,name:'Saeed Al Mansoori',initials:'SM',color:'#6b3d3d',major:'Civil Engineering',year:'3rd Year',gpa:'3.5',avail:true,bio:"Civil gives you real-world skills from early on. I'll help with the math-heavy modules and finding site internships in Abu Dhabi.",topics:['Internships','Structural Maths','CAD','Field Work']},
-  {id:9,name:'Reem Al Dhaheri',initials:'RD',color:'#3d6b4a',major:'Mechanical Engineering',year:'4th Year',gpa:'3.7',avail:false,bio:"MechE has some of the best labs on campus. I went through all the major modules and can share the study approach that actually works.",topics:['Thermodynamics','Lab Reports','GPA Tips','Internships']},
-  {id:10,name:'Hessa Al Mazrouei',initials:'HM',color:'#5a6b3d',major:'Psychology',year:'3rd Year',gpa:'3.9',avail:true,bio:"Psychology opens so many doors. I can help you understand the research side, which courses to prioritize, and how to use the degree creatively.",topics:['Research','Counseling Track','Electives','Career Options']},
-];
- 
-const seniorBookings={
-  upcoming:[
-    {name:'Ali Hassan',major:'IT',day:'29',mon:'Apr',time:'10:00 AM',type:'call',topic:'Course planning'},
-    {name:'Lina Mohammed',major:'IT',day:'02',mon:'May',time:'2:00 PM',type:'meet',topic:'Internship advice'},
-  ],
-  past:[
-    {name:'Yousef Al Ameri',major:'IT',day:'21',mon:'Apr',time:'11:00 AM',type:'call',topic:'Study tips',earned:20},
-    {name:'Nour Al Suwaidi',major:'IT',day:'15',mon:'Apr',time:'3:00 PM',type:'meet',topic:'Electives guidance',earned:20},
-    {name:'Hamdan Al Falasi',major:'IT',day:'08',mon:'Apr',time:'1:00 PM',type:'call',topic:'Career paths',earned:20},
-  ]
-};
- 
-let role='fresh',activeMajor='All',currentSenior=null,sessionType='call',pickedSlot=null,payMethod='card';
-let balance=60;
-let wDest='bank';
- 
+
+// ── Change this to your deployed backend URL once hosted ──
+const API_URL = 'http://localhost:3000';
+
+let role='fresh', activeMajor='All', currentSenior=null, sessionType='call', pickedSlot=null, payMethod='card';
+let wDest='bank', token=null, currentUser=null, balance=0, seniorsList=[];
+
+async function api(path, opts={}) {
+  const headers = {'Content-Type':'application/json'};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const res = await fetch(API_URL + path, {
+      ...opts,
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    return res.json();
+  } catch {
+    return { error: 'Cannot reach server. Make sure the backend is running.' };
+  }
+}
+
 function setRole(r){
   role=r;
   document.getElementById('rb-fresh').classList.toggle('active',r==='fresh');
   document.getElementById('rb-senior').classList.toggle('active',r==='senior');
 }
- 
-function doLogin(){
-  const email=document.getElementById('login-email').value||'yousef@university.ac.ae';
-  const parts=email.split('@')[0].split('.');
-  const name=parts.map(p=>p[0]?.toUpperCase()+p.slice(1)).join(' ');
-  const inits=parts.map(p=>p[0]?.toUpperCase()||'').join('').slice(0,2)||'YA';
-  document.getElementById('nav-av').textContent=inits;
-  document.getElementById('nav-name').textContent=name;
-  if(role==='senior'){
-    document.getElementById('sn-av').textContent=inits;
-    document.getElementById('sn-name').textContent=name;
-    document.getElementById('dash-greet').textContent='Hey, '+(name.split(' ')[0]||'there')+'! 👋';
-    renderDash();
+
+async function doLogin(){
+  const email    = document.getElementById('login-email').value || 'yousef@university.ac.ae';
+  const password = document.getElementById('login-pass').value  || 'password123';
+  const res = await api('/api/auth/login', { method:'POST', body:{ email, password, role } });
+  if (res.error) { alert(res.error); return; }
+  token = res.token;
+  currentUser = res.user;
+  const { name, initials } = res.user;
+  document.getElementById('nav-av').textContent   = initials;
+  document.getElementById('nav-name').textContent = name;
+  if (role === 'senior') {
+    document.getElementById('sn-av').textContent      = initials;
+    document.getElementById('sn-name').textContent    = name;
+    document.getElementById('dash-greet').textContent = 'Hey, ' + (name.split(' ')[0]||'there') + '! 👋';
+    await renderDash();
     showPage('senior');
   } else {
-    buildPills();applyFilters();showPage('browse');
+    buildPills();
+    await applyFilters();
+    showPage('browse');
   }
 }
- 
-function doLogout(){showPage('login');}
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');}
- 
+
+function doLogout(){ token=null; currentUser=null; showPage('login'); }
+function showPage(id){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById('page-'+id).classList.add('active'); }
+
 function buildPills(){
-  const w=document.getElementById('major-pills');
-  w.innerHTML=['All',...MAJORS].map(m=>`<button class="mpill${m==='All'?' active':''}" onclick="setMajor('${m.replace(/'/g,"\\'")}',this)">${m}</button>`).join('');
+  const w = document.getElementById('major-pills');
+  w.innerHTML = ['All',...MAJORS].map(m=>`<button class="mpill${m==='All'?' active':''}" onclick="setMajor('${m.replace(/'/g,"\\'")}',this)">${m}</button>`).join('');
 }
- 
+
 function setMajor(m,el){
   activeMajor=m;
   document.querySelectorAll('.mpill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   applyFilters();
 }
- 
-function applyFilters(){
-  const q=(document.getElementById('search-q')?.value||'').toLowerCase();
-  const avail=document.getElementById('avail-sel')?.value;
-  const list=seniors.filter(s=>{
-    const mm=activeMajor==='All'||s.major===activeMajor;
-    const qm=!q||s.name.toLowerCase().includes(q)||s.major.toLowerCase().includes(q)||s.topics.join(' ').toLowerCase().includes(q);
-    const am=!avail||s.avail;
-    return mm&&qm&&am;
-  });
-  renderCards(list);
+
+async function applyFilters(){
+  const q     = document.getElementById('search-q')?.value || '';
+  const avail = document.getElementById('avail-sel')?.value;
+  const params = new URLSearchParams();
+  if (activeMajor !== 'All') params.set('major', activeMajor);
+  if (avail === '1') params.set('available', '1');
+  if (q) params.set('q', q);
+  const list = await api('/api/seniors?' + params);
+  seniorsList = Array.isArray(list) ? list : [];
+  renderCards(seniorsList);
 }
- 
+
 function renderCards(list){
-  const g=document.getElementById('cards-grid');
-  if(!list.length){g.innerHTML='<p style="color:var(--text3);font-size:14px;font-weight:600;padding:32px 0;">No seniors found — try adjusting the filters! 🙂</p>';return;}
-  g.innerHTML=list.map(s=>`
+  const g = document.getElementById('cards-grid');
+  if (!list.length) { g.innerHTML='<p style="color:var(--text3);font-size:14px;font-weight:600;padding:32px 0;">No seniors found — try adjusting the filters! 🙂</p>'; return; }
+  g.innerHTML = list.map(s=>`
     <div class="s-card">
       <div class="card-top">
         <div class="av-lg" style="background:${s.color}">${s.initials}</div>
         <div>
           <div class="s-name">${s.name}</div>
           <div class="s-major">${s.major} · ${s.year}</div>
-          <div class="avail-bd ${s.avail?'on':'off'}"><span class="dot"></span>${s.avail?'Available now':'Busy this week'}</div>
+          <div class="avail-bd ${s.available?'on':'off'}"><span class="dot"></span>${s.available?'Available now':'Busy this week'}</div>
         </div>
       </div>
       <p class="s-bio">${s.bio.length>100?s.bio.slice(0,100)+'…':s.bio}</p>
       <div class="tags">${s.topics.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
-      <div class="card-price-row">
-        <span class="card-price">💳 10 AED per session</span>
-      </div>
+      <div class="card-price-row"><span class="card-price">💳 10 AED per session</span></div>
       <div class="card-btns">
         <button class="cbtn cbtn-call" onclick="openModal(${s.id},'call')">
           <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.58 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -564,72 +559,71 @@ function renderCards(list){
     </div>
   `).join('');
 }
- 
-function renderDash(){
-  const up=seniorBookings.upcoming;
-  const past=seniorBookings.past;
-  document.getElementById('stat-total').textContent=up.length+past.length;
-  document.getElementById('stat-week').textContent=up.length;
-  updateBalance();
-  const upEl=document.getElementById('bk-upcoming');
-  upEl.innerHTML=up.length?up.map((b,i)=>bkHTML(b,i,false)).join(''):`<div class="empty-s">😊 No upcoming sessions yet — freshmen will book you soon!</div>`;
-  const pastEl=document.getElementById('bk-past');
-  pastEl.innerHTML=past.length?past.map((b,i)=>bkHTML(b,i,true)).join(''):`<div class="empty-s">📭 No past sessions yet.</div>`;
+
+async function renderDash(){
+  const [bookings, earnings] = await Promise.all([api('/api/bookings'), api('/api/earnings')]);
+  balance = earnings.balance || 0;
+  const upcoming = (Array.isArray(bookings)?bookings:[]).filter(b=>b.status==='upcoming');
+  const past     = (Array.isArray(bookings)?bookings:[]).filter(b=>b.status==='completed');
+  document.getElementById('stat-total').textContent = upcoming.length + past.length;
+  document.getElementById('stat-week').textContent  = upcoming.length;
+  document.getElementById('earn-amt').innerHTML     = `${balance} <span style="font-size:20px;opacity:.65">AED</span>`;
+  document.getElementById('earn-sub').textContent   = `From ${earnings.totalSessions||0} completed session${earnings.totalSessions!==1?'s':''} this month`;
+  document.getElementById('w-amount').value = balance;
+  document.getElementById('w-amount').max   = balance;
+  const upEl = document.getElementById('bk-upcoming');
+  upEl.innerHTML = upcoming.length ? upcoming.map((b,i)=>bkHTML(b,i,false)).join('') : `<div class="empty-s">😊 No upcoming sessions yet — freshmen will book you soon!</div>`;
+  const pastEl = document.getElementById('bk-past');
+  pastEl.innerHTML = past.length ? past.map((b,i)=>bkHTML(b,i,true)).join('') : `<div class="empty-s">📭 No past sessions yet.</div>`;
 }
- 
-function updateBalance(){
-  document.getElementById('earn-amt').innerHTML=`${balance} <span style="font-size:20px;opacity:.65">AED</span>`;
-  const n=seniorBookings.past.length;
-  document.getElementById('earn-sub').textContent=`From ${n} completed session${n!==1?'s':''} this month`;
-  document.getElementById('w-amount').value=balance;
-  document.getElementById('w-amount').max=balance;
-}
- 
+
 function bkHTML(b,i,isPast){
+  const parts = b.slot.split(' ');
+  const day = parts[0], time = parts.slice(1).join(' ');
   return `<div class="bk-card">
-    <div class="bk-date"><div class="bk-day">${b.day}</div><div class="bk-mon">${b.mon}</div></div>
+    <div class="bk-date"><div class="bk-day">${day}</div><div class="bk-mon">${time}</div></div>
     <div class="bk-info">
-      <div class="bk-name">${b.name}</div>
-      <div class="bk-details">${b.time} · ${b.topic}</div>
+      <div class="bk-name">${b.student_name||b.senior_name||''}</div>
+      <div class="bk-details">${b.slot} · ${b.topic||'General advice'}</div>
       ${isPast&&b.earned?`<div class="bk-earned">+${b.earned} AED earned</div>`:''}
     </div>
     <div class="bk-right">
       <span class="bk-type ${b.type==='call'?'bk-call':'bk-meet'}">${b.type==='call'?'📞 Video call':'📍 In person'}</span>
-      ${!isPast?`<div class="bk-acts"><button class="bk-btn">Reschedule</button><button class="bk-btn danger" onclick="cancelBk(${i})">Cancel</button></div>`:'<span style="font-size:12px;font-weight:700;color:#2d7a47;">✓ Done</span>'}
+      ${!isPast?`<div class="bk-acts"><button class="bk-btn">Reschedule</button><button class="bk-btn danger" onclick="cancelBk(${b.id})">Cancel</button></div>`:'<span style="font-size:12px;font-weight:700;color:#2d7a47;">✓ Done</span>'}
     </div>
   </div>`;
 }
- 
-function cancelBk(i){seniorBookings.upcoming.splice(i,1);renderDash();}
- 
+
+async function cancelBk(id){ await api('/api/bookings/'+id,{method:'DELETE'}); await renderDash(); }
+
 function openModal(id,type){
-  currentSenior=seniors.find(s=>s.id===id);
-  sessionType=type;pickedSlot=null;payMethod='card';
-  const s=currentSenior;
-  document.getElementById('m-av').textContent=s.initials;
-  document.getElementById('m-av').style.background=s.color;
-  document.getElementById('m-name').textContent=s.name;
-  document.getElementById('m-major').textContent=s.major+' · '+s.year;
-  document.getElementById('m-bio').textContent=s.bio;
-  document.getElementById('m-info').innerHTML=`
+  currentSenior = seniorsList.find(s=>s.id===id);
+  if (!currentSenior) return;
+  sessionType=type; pickedSlot=null; payMethod='card';
+  const s = currentSenior;
+  document.getElementById('m-av').textContent        = s.initials;
+  document.getElementById('m-av').style.background   = s.color;
+  document.getElementById('m-name').textContent      = s.name;
+  document.getElementById('m-major').textContent     = s.major+' · '+s.year;
+  document.getElementById('m-bio').textContent       = s.bio;
+  document.getElementById('m-info').innerHTML = `
     <div class="info-item"><div class="info-item-lbl">GPA</div><div class="info-item-val">${s.gpa} / 4.0</div></div>
     <div class="info-item"><div class="info-item-lbl">Major</div><div class="info-item-val">${s.major}</div></div>
-    <div class="info-item"><div class="info-item-lbl">Status</div><div class="info-item-val" style="color:${s.avail?'#2d7a47':'#999'}">${s.avail?'✅ Available':'⏳ Busy'}</div></div>
+    <div class="info-item"><div class="info-item-lbl">Status</div><div class="info-item-val" style="color:${s.available?'#2d7a47':'#999'}">${s.available?'✅ Available':'⏳ Busy'}</div></div>
     <div class="info-item"><div class="info-item-lbl">Year</div><div class="info-item-val">${s.year}</div></div>
   `;
-  setType(type);
-  setPayment('card');
+  setType(type); setPayment('card');
   document.querySelectorAll('.slot').forEach(sl=>sl.classList.remove('picked'));
   document.getElementById('overlay').classList.add('open');
 }
- 
+
 function setType(t){
   sessionType=t;
   document.getElementById('tb-call').classList.toggle('active',t==='call');
   document.getElementById('tb-meet').classList.toggle('active',t==='meet');
   document.getElementById('loc-pick').style.display=t==='meet'?'block':'none';
 }
- 
+
 function setPayment(m){
   payMethod=m;
   document.getElementById('pay-card').classList.toggle('active',m==='card');
@@ -638,23 +632,25 @@ function setPayment(m){
     ?'Your card will be charged 10 AED when you confirm.'
     :'Head to the front desk to pay 10 AED in cash. Your session is reserved for 24 hours.';
 }
- 
+
 function pickSlot(el){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('picked'));
   el.classList.add('picked');
   pickedSlot=el.textContent.trim();
 }
- 
-function maybeClose(e){if(e.target===document.getElementById('overlay'))closeModal();}
-function closeModal(){document.getElementById('overlay').classList.remove('open');}
- 
-function confirmBooking(){
-  if(!pickedSlot){alert('Please pick a time slot 😊');return;}
-  const s=currentSenior;
-  const tl=sessionType==='call'?'Video Call':'Face-to-Face Meeting';
-  const pm=payMethod==='card'?'Card payment':'Cash at front desk';
-  document.getElementById('suc-msg').textContent=`Your ${tl.toLowerCase()} with ${s.name} is confirmed! You'll get a reminder before it starts.`;
-  document.getElementById('suc-sum').innerHTML=`
+
+function maybeClose(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+async function confirmBooking(){
+  if (!pickedSlot) { alert('Please pick a time slot 😊'); return; }
+  const s = currentSenior;
+  const res = await api('/api/bookings', { method:'POST', body:{ seniorId:s.id, type:sessionType, slot:pickedSlot, paymentMethod:payMethod, topic:'General advice' } });
+  if (res.error) { alert(res.error); return; }
+  const tl = sessionType==='call'?'Video Call':'Face-to-Face Meeting';
+  const pm = payMethod==='card'?'Card payment':'Cash at front desk';
+  document.getElementById('suc-msg').textContent = `Your ${tl.toLowerCase()} with ${s.name} is confirmed! You'll get a reminder before it starts.`;
+  document.getElementById('suc-sum').innerHTML = `
     <div class="suc-row"><span class="suc-rl">Senior</span><span class="suc-rv">${s.name}</span></div>
     <div class="suc-row"><span class="suc-rl">Major</span><span class="suc-rv">${s.major}</span></div>
     <div class="suc-row"><span class="suc-rl">Type</span><span class="suc-rv">${tl}</span></div>
@@ -663,33 +659,32 @@ function confirmBooking(){
     <div class="suc-row"><span class="suc-rl">Fee</span><span class="suc-rv" style="color:var(--gold);font-size:15px;">10 AED</span></div>
     <div class="suc-row"><span class="suc-rl">Payment</span><span class="suc-rv">${pm}</span></div>
   `;
-  document.getElementById('suc-pay-note').innerHTML=payMethod==='card'
+  document.getElementById('suc-pay-note').innerHTML = payMethod==='card'
     ?'💳 <strong>10 AED has been charged</strong> to your card. Keep this confirmation as your receipt.'
     :'🏦 <strong>Please pay 10 AED cash at the front desk</strong> within 24 hours to confirm your session. Show them this screen.';
-  closeModal();
-  showPage('success');
+  closeModal(); showPage('success');
 }
- 
-/* WITHDRAW*/
-function openWithdraw(dest){
-  wDest=dest;selectWopt(dest);
-  document.getElementById('woverlay').classList.add('open');
-}
-function closeWithdraw(){document.getElementById('woverlay').classList.remove('open');}
-function maybeCloseW(e){if(e.target===document.getElementById('woverlay'))closeWithdraw();}
+
+function openWithdraw(dest){ wDest=dest; selectWopt(dest); document.getElementById('woverlay').classList.add('open'); }
+function closeWithdraw(){ document.getElementById('woverlay').classList.remove('open'); }
+function maybeCloseW(e){ if(e.target===document.getElementById('woverlay')) closeWithdraw(); }
 function selectWopt(dest){
   wDest=dest;
   document.getElementById('wopt-bank').classList.toggle('selected',dest==='bank');
   document.getElementById('wopt-uni').classList.toggle('selected',dest==='uni');
 }
-function confirmWithdraw(){
-  const amt=parseInt(document.getElementById('w-amount').value)||0;
-  if(amt<=0||amt>balance){alert('Enter a valid amount.');return;}
-  balance-=amt;
-  updateBalance();
+
+async function confirmWithdraw(){
+  const amt = parseInt(document.getElementById('w-amount').value)||0;
+  if (amt<=0||amt>balance) { alert('Enter a valid amount.'); return; }
+  const res = await api('/api/earnings/withdraw',{method:'POST',body:{amount:amt,destination:wDest}});
+  if (res.error) { alert(res.error); return; }
+  balance -= amt;
+  document.getElementById('earn-amt').innerHTML = `${balance} <span style="font-size:20px;opacity:.65">AED</span>`;
+  document.getElementById('w-amount').value = balance;
+  document.getElementById('w-amount').max   = balance;
   closeWithdraw();
-  const dest=wDest==='bank'?'your bank account':'your university account';
-  alert(`✅ ${amt} AED will be sent to ${dest} within 1–2 business days!`);
+  alert(`✅ ${amt} AED will be sent to ${wDest==='bank'?'your bank account':'your university account'} within 1–2 business days!`);
 }
 </script>
 </body>
