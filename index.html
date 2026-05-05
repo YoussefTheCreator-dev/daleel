@@ -253,6 +253,7 @@ h1,h2,h3,h4{font-family:'Nunito',sans-serif;}
   <div class="topbar">
     <div class="logo"><div class="logo-bub">🤝</div>Daleel</div>
     <div class="topbar-r">
+      <button class="btn-out" style="background:var(--primary-light);color:var(--primary);border-color:#c4dbc9;" onclick="showMySessions()">📅 My Sessions</button>
       <div class="user-chip"><div class="av" id="nav-av" style="background:#3d6b4f">YA</div><span id="nav-name">You</span></div>
       <button class="btn-out" onclick="doLogout()">Log out</button>
     </div>
@@ -347,11 +348,38 @@ h1,h2,h3,h4{font-family:'Nunito',sans-serif;}
       <p class="suc-sub" id="suc-msg">Your session has been confirmed!</p>
       <div class="suc-sum" id="suc-sum"></div>
       <div class="suc-pay-note" id="suc-pay-note"></div>
-      <button class="btn-bb" onclick="showPage('browse')">← Browse more seniors</button>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+        <button class="btn-bb" onclick="showMySessions()">📅 View my sessions</button>
+        <button class="btn-bb" style="background:var(--surface2);color:var(--text2);border:1.5px solid var(--border2);" onclick="showPage('browse')">← Browse more seniors</button>
+      </div>
     </div>
   </div>
 </div>
- 
+
+<!-- ══ MY SESSIONS (FRESHMAN) ══ -->
+<div class="page" id="page-mysessions">
+  <div class="topbar">
+    <div class="logo"><div class="logo-bub">🤝</div>Daleel</div>
+    <div class="topbar-r">
+      <div class="user-chip"><div class="av" id="ms-av" style="background:#3d6b4f">YA</div><span id="ms-name">You</span></div>
+      <button class="btn-out" onclick="doLogout()">Log out</button>
+    </div>
+  </div>
+  <div class="dash-body">
+    <div class="dash-welcome">
+      <h2 id="ms-greet">My Sessions 📅</h2>
+      <p>All your booked advising sessions in one place.</p>
+    </div>
+    <div class="sec-head">📅 Upcoming Sessions</div>
+    <div class="bk-list" id="ms-upcoming"></div>
+    <div class="sec-head">✅ Past Sessions</div>
+    <div class="bk-list" id="ms-past"></div>
+    <div style="margin-top:8px;">
+      <button class="btn-bb" style="background:var(--surface2);color:var(--text2);border:1.5px solid var(--border2);" onclick="showPage('browse')">← Back to browse</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ BOOKING MODAL ══ -->
 <div class="overlay" id="overlay" onclick="maybeClose(event)">
   <div class="modal" id="modal-box">
@@ -471,6 +499,11 @@ let mockBookings = [
   { id:4, status:'completed', slot:'Thu 1:00 PM', type:'meet', student_name:'Sara Mahmoud', topic:'Career Advice', earned:10 },
 ];
 let mockBalance = 20;
+
+let myBookings = [
+  { id:101, status:'upcoming', slot:'Tue 3:30 PM', type:'call', senior_name:'Sara Al-Mansouri', senior_major:'Computer Engineering', topic:'Course Selection' },
+  { id:102, status:'completed', slot:'Mon 9:00 AM', type:'meet', senior_name:'Ahmed Khalil', senior_major:'Biomedical Engineering', topic:'Research Opportunities' },
+];
 
 let role='fresh', activeMajor='All', currentSenior=null, sessionType='call', pickedSlot=null, payMethod='card';
 let wDest='bank', currentUser=null, balance=0, seniorsList=[];
@@ -642,6 +675,7 @@ async function confirmBooking(){
   if (!pickedSlot) { alert('Please pick a time slot 😊'); return; }
   const s = currentSenior;
   mockBookings.push({ id: Date.now(), status:'upcoming', slot:pickedSlot, type:sessionType, student_name:currentUser?.name||'You', topic:'General advice', earned:null });
+  myBookings.push({ id: Date.now()+1, status:'upcoming', slot:pickedSlot, type:sessionType, senior_name:s.name, senior_major:s.major, topic:'General advice' });
   const tl = sessionType==='call'?'Video Call':'Face-to-Face Meeting';
   const pm = payMethod==='card'?'Card payment':'Cash at front desk';
   document.getElementById('suc-msg').textContent = `Your ${tl.toLowerCase()} with ${s.name} is confirmed! You'll get a reminder before it starts.`;
@@ -659,6 +693,44 @@ async function confirmBooking(){
     :'🏦 <strong>Please pay 10 AED cash at the front desk</strong> within 24 hours to confirm your session. Show them this screen.';
   closeModal(); showPage('success');
 }
+
+function showMySessions(){
+  if (currentUser) {
+    document.getElementById('ms-av').textContent   = currentUser.initials || 'YA';
+    document.getElementById('ms-name').textContent = currentUser.name || 'You';
+    document.getElementById('ms-greet').textContent = 'My Sessions 📅';
+  }
+  renderMySessions();
+  showPage('mysessions');
+}
+
+function renderMySessions(){
+  const upcoming = myBookings.filter(b=>b.status==='upcoming');
+  const past     = myBookings.filter(b=>b.status==='completed');
+  const upEl = document.getElementById('ms-upcoming');
+  upEl.innerHTML = upcoming.length ? upcoming.map(b=>myBkHTML(b,false)).join('') : `<div class="empty-s">📭 No upcoming sessions yet — go book one! 🎓</div>`;
+  const pastEl = document.getElementById('ms-past');
+  pastEl.innerHTML = past.length ? past.map(b=>myBkHTML(b,true)).join('') : `<div class="empty-s">📭 No past sessions yet.</div>`;
+}
+
+function myBkHTML(b, isPast){
+  const parts = b.slot.split(' ');
+  const day = parts[0], time = parts.slice(1).join(' ');
+  return `<div class="bk-card">
+    <div class="bk-date"><div class="bk-day">${day}</div><div class="bk-mon">${time}</div></div>
+    <div class="bk-info">
+      <div class="bk-name">${b.senior_name}</div>
+      <div class="bk-details">${b.senior_major} · ${b.topic||'General advice'}</div>
+      <div class="bk-details" style="margin-top:2px;">${b.slot}</div>
+    </div>
+    <div class="bk-right">
+      <span class="bk-type ${b.type==='call'?'bk-call':'bk-meet'}">${b.type==='call'?'📞 Video call':'📍 In person'}</span>
+      ${!isPast?`<div class="bk-acts"><button class="bk-btn danger" onclick="cancelMyBk(${b.id})">Cancel</button></div>`:'<span style="font-size:12px;font-weight:700;color:#2d7a47;">✓ Done</span>'}
+    </div>
+  </div>`;
+}
+
+function cancelMyBk(id){ myBookings = myBookings.filter(b=>b.id!==id); renderMySessions(); }
 
 function openWithdraw(dest){ wDest=dest; selectWopt(dest); document.getElementById('woverlay').classList.add('open'); }
 function closeWithdraw(){ document.getElementById('woverlay').classList.remove('open'); }
